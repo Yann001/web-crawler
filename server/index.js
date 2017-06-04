@@ -1,12 +1,105 @@
-var http = require('http');
+var https = require('https');
 var fs = require('fs');
 var cheerio = require('cheerio');
 var i = 0;
-var url = "http://jiangxi.circ.gov.cn/web/site25/tab1475/info4064640.htm";
+//QQ音乐歌手列表页
+var url = 'https://y.qq.com/portal/singer_list.html';
+var page = '';
+var status = 'waiting';
+var count = 0;
+
+//主程序开始
+getPage(url);
+
+function getPage(url) {
+  https.get(url, function (res) {
+    console.log('get success...');
+    res.setEncoding('utf-8');
+    res.on('data', function (chunk) {
+      page += chunk;
+    });
+    res.on('end', function () {
+      status = 'end';
+      console.log(page);
+      resolvePage(page);
+      count = count + 1;
+      if(count < 2) {
+        getPage(url);
+      }
+    });
+    res.on('error', function () {
+      status = 'error';
+      console.log('http get error...')
+    })
+  })
+}
+
+// 解析html
+function resolvePage(page) {
+  if (page) {
+    var $ = cheerio.load(page);
+    //歌手标签
+    //var singerTag = getSingerTag($);
+    //歌手列表
+    var singerList = getSingerList($);
+  } else {
+    return null;
+  }
+}
+//解析歌手标签
+function getSingerTag($) {
+  var singerTag = {};
+  var singerTagAreas = [];
+  var singerTagLetters = [];
+  $('div.main div.mod_singer_tag div.js_area a').each(function () {
+    var tagName = $(this).text();
+    var dataKey = $(this).attr('data-key');
+    singerTagAreas.push({ tagName: tagName, dataKey: dataKey });
+  });
+  $('div.main div.mod_singer_tag div.js_letter a').each(function () {
+    var tagName = $(this).text();
+    var dataKey = $(this).attr('data-key');
+    singerTagLetters.push({ tagName: tagName, dataKey: dataKey });
+  });
+  singerTag.singerTagAreas = singerTagAreas;
+  singerTag.singerTagLetters = singerTagLetters;
+  console.log(singerTag);
+  return singerTag;
+}
+//解析歌手列表
+function getSingerList($) {
+  var singerList = {};
+  var modSingerList = [];
+  var textSingerList = [];
+  $('div.main div#mod-singerlist ul.js_avtar_list').each(function () {
+    var aHref = $(this).find('a.singer_list__cover').attr('href');
+    var aImgSrc = $(this).find('img').attr('src');
+    var h3AHref = $(this).find('h3 a').attr('href');
+    var h3AText = $(this).find('h3 a').text();
+    modSingerList.push({
+      aHref: aHref,
+      aImgSrc: aImgSrc,
+      h3AHref: h3AHref,
+      h3AText: h3AText
+    });
+  });
+  $('div.main div#mod-singerlist ul.singer_list_txt').each(function () {
+    var LiAhref = $(this).find('a').attr('href');
+    var LiAText = $(this).find('a').text();
+    textSingerList.push({
+      LiAhref: LiAhref,
+      LiAText: LiAText
+    });
+  });
+  singerList.modSingerList = modSingerList;
+  singerList.textSingerList = textSingerList;
+  console.log(singerList);
+  return singerList;
+}
 
 //封装了一层函数
 function fetchPage(x) {
-    startRequest(x); 
+  startRequest(x);
 }
 
 function startRequest(x) {
@@ -65,5 +158,4 @@ function savedContent($, news_title) {
   })
 }
 
-//主程序开始
-fetchPage(url);
+
